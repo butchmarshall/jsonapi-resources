@@ -20,6 +20,10 @@ class RequestTest < ActionDispatch::IntegrationTest
     assert_cacheable_jsonapi_get '/api/v2/books?include=book_comments,book_comments.author'
   end
 
+  def test_get_city_include_streets
+    assert_cacheable_jsonapi_get '/cities/3bbaf722-4583-4fa6-ac36-9190d4b93f80?include=streets'
+  end
+
   def test_get_inflected_resource
     assert_cacheable_jsonapi_get '/api/v8/numeros_telefone'
   end

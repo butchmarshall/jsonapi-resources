@@ -1,0 +1,9 @@
+dundas_street:
+  id: 1
+  city_id: 3bbaf722-4583-4fa6-ac36-9190d4b93f80
+  name: Dundas Street
+
+bloor_street:
+  id: 2
+  city_id: 3bbaf722-4583-4fa6-ac36-9190d4b93f80
+  name: Bloor Street

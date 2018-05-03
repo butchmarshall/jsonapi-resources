@@ -8,6 +8,20 @@ end
 
 ### DATABASE
 ActiveRecord::Schema.define do
+  create_table :cities, id: false, force: true do |t|
+    t.string :id, :limit => 36, :primary_key => true, null: false
+    t.string     :name
+
+    t.timestamps null: false
+  end
+
+  create_table :streets, force: true do |t|
+    t.belongs_to :city, index: true
+    t.string     :name
+
+    t.timestamps null: false
+  end
+
   create_table :people, force: true do |t|
     t.string     :name
     t.string     :email
@@ -359,6 +373,13 @@ ActiveRecord::Schema.define do
 end
 
 ### MODELS
+class City < ActiveRecord::Base
+  has_many :streets
+end
+class Street < ActiveRecord::Base
+  belongs_to :city
+end
+
 class Person < ActiveRecord::Base
   has_many :posts, foreign_key: 'author_id'
   has_many :comments, foreign_key: 'author_id'
@@ -735,6 +756,9 @@ class Robot < ActiveRecord::Base
 end
 
 ### CONTROLLERS
+class CitiesController < JSONAPI::ResourceController
+end
+
 class AuthorsController < JSONAPI::ResourceControllerMetal
 end
 
@@ -1036,6 +1060,29 @@ end
 ### RESOURCES
 class BaseResource < JSONAPI::Resource
   abstract
+end
+
+class CityResource < BaseResource
+  key_type :uuid
+  attribute :name
+
+  attribute :streets
+  has_many :streets
+
+  def self.creatable_fields(context)
+    super + [
+      :id,
+    ]
+  end
+
+  def fetchable_fields
+    super - [:streets]
+  end
+end
+class StreetResource < BaseResource
+  attribute :name
+
+  has_one :city
 end
 
 class PersonResource < BaseResource
