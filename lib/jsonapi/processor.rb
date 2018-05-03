@@ -584,7 +584,11 @@ module JSONAPI
           found_resources = resource_klass.find(filters, find_opts)
 
           found_resources.each do |resource|
-            relationship_data = resource_set[resource_klass][resource.id][:relationships]
+            if !resource_set[resource_klass][resource.id].nil?
+              relationship_data = resource_set[resource_klass][resource.id][:relationships]
+            else
+              relationship_data = resource_set[resource_klass][resource.id.to_s][:relationships]
+            end
 
             if resource_klass.caching?
               (id, cr) = CachedResponseFragment.write(
@@ -596,9 +600,17 @@ module JSONAPI
                   context_key,
                   relationship_data)
 
-              resource_set[resource_klass][id][:resource] = cr
+              if !resource_set[resource_klass][id].nil?
+                resource_set[resource_klass][id][:resource] = cr
+              else
+                resource_set[resource_klass][id.to_s][:resource] = cr
+              end
             else
-              resource_set[resource_klass][resource.id][:resource] = resource
+              if !resource_set[resource_klass][resource.id].nil?
+                resource_set[resource_klass][resource.id][:resource] = resource
+              else
+                resource_set[resource_klass][resource.id.to_s][:resource] = resource
+              end
             end
           end
         end
