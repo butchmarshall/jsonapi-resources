@@ -203,13 +203,13 @@ module JSONAPI
         records = related_klass.apply_filters(records, filters, filter_options)
 
         pluck_fields = [
-            primary_key_field,
-            concat_table_field(table_alias, related_klass._primary_key)
+            "#{primary_key_field} AS #{_table_name}_#{_primary_key}",
+            "#{concat_table_field(table_alias, related_klass._primary_key)} AS #{table_alias}_#{related_klass._primary_key}"
         ]
 
         cache_field = related_klass.attribute_to_model_field(:_cache_field) if options[:cache]
         if cache_field
-          pluck_fields << concat_table_field(table_alias, cache_field[:name])
+          pluck_fields << "#{concat_table_field(table_alias, cache_field[:name])} AS #{table_alias}_#{cache_field[:name]}"
         end
 
         model_fields = {}
@@ -217,7 +217,7 @@ module JSONAPI
         attributes.try(:each) do |attribute|
           model_field = related_klass.attribute_to_model_field(attribute)
           model_fields[attribute] = model_field
-          pluck_fields << concat_table_field(table_alias, model_field[:name])
+          pluck_fields << "#{concat_table_field(table_alias, model_field[:name])} AS #{table_alias}_#{model_field[:name]}"
         end
 
         rows = records.pluck(*pluck_fields)
