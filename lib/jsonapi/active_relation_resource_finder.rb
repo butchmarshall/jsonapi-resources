@@ -538,6 +538,7 @@ module JSONAPI
       end
 
       def concat_table_field(table, field, quoted = false)
+        field = field.split(",").first # composite_primary_key hack
         if table.nil? || field.to_s.include?('.')
           if quoted
             "\"#{field.to_s}\""

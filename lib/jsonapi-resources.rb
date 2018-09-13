@@ -1,3 +1,11 @@
+# composite_primary_key hack
+
+class Array
+  def to_sym
+	self.join(',')
+  end
+end
+
 require 'jsonapi/naive_cache'
 require 'jsonapi/compiled_json'
 require 'jsonapi/resource'

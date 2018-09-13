@@ -33,7 +33,8 @@ module JSONAPI
     end
 
     def id
-      _model.public_send(self.class._primary_key)
+      pk = self.class._primary_key.to_s.split(',').first # composite_primary_key hack
+      _model.public_send(pk)
     end
 
     def identity
@@ -574,11 +575,21 @@ module JSONAPI
         @_attributes ||= {}
         @_attributes[attr] = options
         define_method attr do
-          @model.public_send(options[:delegate] ? options[:delegate].to_sym : attr)
+          key = options[:delegate] ? options[:delegate].to_sym.to_s.split(",").first : attr.to_sym.to_s.split(",").first
+
+          @model.public_send(key)
         end unless method_defined?(attr)
 
         define_method "#{attr}=" do |value|
-          @model.public_send("#{options[:delegate] ? options[:delegate].to_sym : attr}=", value)
+          key = options[:delegate] ? options[:delegate].to_sym.to_s.split(",").first : attr.to_sym.to_s.split(",").first
+
+          # Hack - send the two keys id actually requires, only works if composite key is id,type (which is my use case)
+          pk = @model.class.primary_key
+          if pk.is_a?(Array) && pk.include?("type")
+            value = "#{value},#{@model.class.to_s}"
+          end
+
+          @model.public_send("#{key}=", value)
         end unless method_defined?("#{attr}=")
 
         if options.fetch(:sortable, true) && !_has_sort?(attr)
