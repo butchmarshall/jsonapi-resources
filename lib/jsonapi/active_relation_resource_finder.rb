@@ -64,11 +64,11 @@ module JSONAPI
         records = find_records(filters, options)
 
         table_name = _model_class.table_name
-        pluck_fields = [concat_table_field(table_name, _primary_key)]
+        pluck_fields = ["#{concat_table_field(table_name, _primary_key)} AS #{table_name}_#{_primary_key}"]
 
         cache_field = attribute_to_model_field(:_cache_field) if options[:cache]
         if cache_field
-          pluck_fields << concat_table_field(table_name, cache_field[:name])
+          pluck_fields << "#{concat_table_field(table_name, cache_field[:name])} AS #{table_name}_#{cache_field[:name]}"
         end
 
         model_fields = {}
@@ -76,7 +76,7 @@ module JSONAPI
         attributes.try(:each) do |attribute|
           model_field = attribute_to_model_field(attribute)
           model_fields[attribute] = model_field
-          pluck_fields << concat_table_field(table_name, model_field[:name])
+          pluck_fields << "#{concat_table_field(table_name, model_field[:name])} AS #{table_name}_#{model_field[:name]}"
         end
 
         fragments = {}
@@ -110,13 +110,13 @@ module JSONAPI
       # @return [Hash{ResourceIdentity => {identity: => ResourceIdentity, cache: cache_field, attributes: => {name => value}, related: {relationship_name: [] }}}]
       #    the ResourceInstances matching the filters, sorting, and pagination rules along with any request
       #    additional_field values
-      def find_related_fragments(source_rids, relationship_name, options = {})
+      def find_related_fragments(source_rids, relationship_name, options = {}, included_key = nil)
         relationship = _relationship(relationship_name)
 
         if relationship.polymorphic? && relationship.foreign_key_on == :self
           find_related_polymorphic_fragments(source_rids, relationship, options)
         else
-          find_related_monomorphic_fragments(source_rids, relationship, options)
+          find_related_monomorphic_fragments(source_rids, relationship, included_key, options)
         end
       end
 
@@ -162,7 +162,7 @@ module JSONAPI
         records.where({ _primary_key => keys })
       end
 
-      def find_related_monomorphic_fragments(source_rids, relationship, options = {})
+      def find_related_monomorphic_fragments(source_rids, relationship, included_key, options = {})
         source_ids = source_rids.collect {|rid| rid.id}
 
         context = options[:context]
@@ -185,7 +185,8 @@ module JSONAPI
 
         # ToDO: Remove count check. Currently pagination isn't working with multiple source_rids (i.e. it only works
         # for show relationships, not related includes).
-        if paginator && source_rids.count == 1
+        # Check included_key to not paginate included resources but ensure that nested resources can be paginated
+        if paginator && source_rids.count == 1 && !included_key
           records = related_klass.apply_pagination(records, paginator, order_options)
         end
 
@@ -203,13 +204,13 @@ module JSONAPI
         records = related_klass.apply_filters(records, filters, filter_options)
 
         pluck_fields = [
-            primary_key_field,
-            concat_table_field(table_alias, related_klass._primary_key)
+            "#{primary_key_field} AS #{_table_name}_#{_primary_key}",
+            "#{concat_table_field(table_alias, related_klass._primary_key)} AS #{table_alias}_#{related_klass._primary_key}"
         ]
 
         cache_field = related_klass.attribute_to_model_field(:_cache_field) if options[:cache]
         if cache_field
-          pluck_fields << concat_table_field(table_alias, cache_field[:name])
+          pluck_fields << "#{concat_table_field(table_alias, cache_field[:name])} AS #{table_alias}_#{cache_field[:name]}"
         end
 
         model_fields = {}
@@ -217,7 +218,7 @@ module JSONAPI
         attributes.try(:each) do |attribute|
           model_field = related_klass.attribute_to_model_field(attribute)
           model_fields[attribute] = model_field
-          pluck_fields << concat_table_field(table_alias, model_field[:name])
+          pluck_fields << "#{concat_table_field(table_alias, model_field[:name])} AS #{table_alias}_#{model_field[:name]}"
         end
 
         rows = records.pluck(*pluck_fields)
@@ -263,7 +264,11 @@ module JSONAPI
         related_key = concat_table_field(_table_name, relationship.foreign_key)
         related_type = concat_table_field(_table_name, relationship.polymorphic_type)
 
-        pluck_fields = [primary_key, related_key, related_type]
+        pluck_fields = [
+          "#{primary_key} AS #{_table_name}_#{_primary_key}",
+          "#{related_key} AS #{_table_name}_#{relationship.foreign_key}",
+          "#{related_type} AS #{_table_name}_#{relationship.polymorphic_type}"
+        ]
 
         relations = relationship.polymorphic_relations
 
@@ -434,10 +439,11 @@ module JSONAPI
         associations.inject do |prev, current|
           prev_table_name = _join_table_name(prev)
           curr_table_name = _join_table_name(current)
+          relationship_primary_key = current.options.fetch(:primary_key, "id")
           if current.belongs_to?
-            joins << "LEFT JOIN #{current.table_name} AS #{curr_table_name} ON #{curr_table_name}.id = #{prev_table_name}.#{current.foreign_key}"
+            joins << "LEFT JOIN #{current.table_name} AS #{curr_table_name} ON #{curr_table_name}.#{relationship_primary_key} = #{prev_table_name}.#{current.foreign_key}"
           else
-            joins << "LEFT JOIN #{current.table_name} AS #{curr_table_name} ON #{curr_table_name}.#{current.foreign_key} = #{prev_table_name}.id"
+            joins << "LEFT JOIN #{current.table_name} AS #{curr_table_name} ON #{curr_table_name}.#{current.foreign_key} = #{prev_table_name}.#{relationship_primary_key}"
           end
 
           current

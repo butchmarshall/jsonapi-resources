@@ -240,6 +240,7 @@ end
 
 JSONAPI.configuration.route_format = :underscored_route
 TestApp.routes.draw do
+  jsonapi_resources :sessions
   jsonapi_resources :people
   jsonapi_resources :special_people
   jsonapi_resources :comments
@@ -421,6 +422,12 @@ MyEngine::Engine.routes.draw do
 
   namespace :dasherized_namespace, path: 'dasherized-namespace' do
     namespace :v1 do
+      jsonapi_resources :people
+    end
+  end
+
+  namespace :optional_namespace, path: 'optional_namespace' do
+    namespace :v1, path: '' do
       jsonapi_resources :people
     end
   end
@@ -671,6 +678,19 @@ class TitleValueFormatter < JSONAPI::ValueFormatter
 
     def unformat(value)
       value.to_s.downcase
+    end
+  end
+end
+
+class OptionalRouteFormatter < JSONAPI::RouteFormatter
+  class << self
+    def format(route)
+      return if route == 'v1'
+      super
+    end
+
+    def unformat(formatted_route)
+      super
     end
   end
 end
